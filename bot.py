@@ -1,33 +1,35 @@
-from telegram import Bot
-from flask import Flask, request
 import os
-
-app = Flask(__name__)
+from flask import Flask, request
+from telegram import Bot, Update
+from telegram.ext import Application, CommandHandler
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 CHANNEL_ID = int(os.environ.get("CHANNEL_ID"))
 
 bot = Bot(token=BOT_TOKEN)
 
-@app.route("/signal", methods=["POST"])
-def signal():
-    data = request.json
+app = Flask(__name__)
 
-    pair = data.get("pair", "BTC/USDT")
-    side = data.get("side", "LONG")
-    tp = data.get("tp", "—")
-    sl = data.get("sl", "—")
+# --- TELEGRAM COMMAND ---
+async def start(update: Update, context):
+    await update.message.reply_text("Bot aktivdir ✅")
 
-    text = (
-        "📊 SİQNAL\n"
-        f"Cütlük: {pair}\n"
-        f"İstiqamət: {side}\n"
-        f"TP: {tp}\n"
-        f"SL: {sl}"
-    )
+# --- APPLICATION ---
+application = Application.builder().token(BOT_TOKEN).build()
+application.add_handler(CommandHandler("start", start))
 
-    bot.send_message(chat_id=CHANNEL_ID, text=text)
-    return {"ok": True}
+# --- WEBHOOK ROUTE ---
+@app.route("/", methods=["POST"])
+def webhook():
+    update = Update.de_json(request.get_json(force=True), bot)
+    application.update_queue.put_nowait(update)
+    return "ok"
 
+# --- HEALTH CHECK ---
+@app.route("/", methods=["GET"])
+def index():
+    return "Bot is running"
+
+# --- START ---
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    app.run(host="0.0.0.0", port=8080)
