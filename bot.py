@@ -1,33 +1,27 @@
 import os
-import asyncio
-from flask import Flask, request
 from telegram import Update
-from telegram.ext import Application, CommandHandler
+from telegram.ext import Application, CommandHandler, ContextTypes
 
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 CHANNEL_ID = int(os.environ["CHANNEL_ID"])
 
-app = Flask(__name__)
-
-application = Application.builder().token(BOT_TOKEN).build()
-
-# --- COMMAND ---
-async def start(update: Update, context):
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Bot aktivdir ✅")
 
-application.add_handler(CommandHandler("start", start))
+async def signal(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_message(
+        chat_id=CHANNEL_ID,
+        text="📢 TEST SİQNAL"
+    )
 
-# --- WEBHOOK ---
-@app.route("/", methods=["POST"])
-def webhook():
-    update = Update.de_json(request.get_json(force=True), application.bot)
-    asyncio.run(application.process_update(update))
-    return "ok"
+def main():
+    app = Application.builder().token(BOT_TOKEN).build()
 
-# --- TEST PAGE ---
-@app.route("/", methods=["GET"])
-def index():
-    return "Bot is running"
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("signal", signal))
+
+    print("Bot polling ilə işləyir...")
+    app.run_polling()
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080)
+    main()
